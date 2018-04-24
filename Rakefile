@@ -8,7 +8,7 @@ file "docs/index.html" => "README.md" do |t|
   system("pandoc", *[md, "-s", "-t" "html5", "-c", "stylesheet.css", "-o", html])
 end
 
-SOURCE_FOR_GHPAGES = Rake::FileList.new("notebooks/*.html")
+SOURCE_FOR_GHPAGES = Rake::FileList.new("./*.html")
 FILE_FOR_GHPAGES = SOURCE_FOR_GHPAGES.pathmap("docs/%f")
 desc "./*.html => docs/*.html"
 task :ghpages => FILE_FOR_GHPAGES
