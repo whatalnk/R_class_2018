@@ -1,0 +1,47 @@
+---
+title: "第0回: 開講のお知らせなど"
+output: html_notebook
+date: 2018-01-15 16:00--
+---
+
+自己紹介
+
+- background
+- 知りたいこと，やりたいこと
+- 好きなパッケージ
+
+などなど
+
+- [Environmental computing](http://environmentalcomputing.net/) の紹介
+- R でできること
+    - Google Docs の操作
+    - Interactive な図（Plotly, Shiny）
+- R を使って Ecological question に答える
+- R Studio Notebook の紹介
+- dplyr, ggplot2 (tidyverse) の紹介
+- `data.frame` とは?，`factor` とは?
+    - [Advanced R](http://adv-r.had.co.nz/) 系の話題
+
+```{r}
+iris
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(iris, aes(x=Petal.Length, y=Sepal.Length, col=Species)) + 
+  geom_point() -> figure1
+figure1
+```
+- 種類別のプロット（`facet`）
+```{r}
+ggplot(iris, aes(x=Petal.Length, y=Sepal.Length, col=Species)) + 
+  geom_point() + 
+  facet_grid(Species~.)
+```
+- interactive な図（`plotly`）
+```{r}
+library(plotly)
+ggplotly(figure1)
+```
+
