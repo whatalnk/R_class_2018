@@ -1,0 +1,226 @@
+---
+title: "第2回: Mixed model"
+output: html_notebook
+date: 2018-04-23 16:00--
+---
+
+## Mixed model
+
+[Environmental computing の mixed-model のページ](http://environmentalcomputing.net/mixed-models/)
+
+* random variable
+
+4 criteria
+
+* is categorical
+* has a large number of levels
+* only a random subsample of levels is included in your design
+* you want to make inference in general, and not only for the levels you observed.
+
+
+薬学とかで使われる
+
+Assumptions
+
+1. The observed $y$ are independent, conditional on some predictors $x$
+1. The response $y$ are normally distributed conditional on some predictors $x$
+1. The response $y$ has constant variance, conditional on some predictors $x$
+1. There is a straight line relationship between $y$ and the predictors $x$ and random effects $z$
+1. Random effects $z$ are independent of $y$.
+1. Random effects $z$ are normally distributed
+
+```{r}
+library(lme4)
+```
+
+```{r}
+n <- 15
+```
+
+正規分布の乱数
+```{r}
+?rnorm()
+```
+
+* seed を設定して乱数の値を固定する
+```{r}
+set.seed(10)
+rnorm(n, mean = 0, sd = 1)
+```
+
+```{r}
+set.seed(10)
+rnorm(n, mean = 0, sd = 1)
+```
+* data.frame の作成
+```{r}
+site_effect <- rnorm(n, mean=0, sd=1)
+y1 <- site_effect + rnorm(n, mean=0, sd=1)
+y2 <- site_effect + 6 + rnorm(n, mean=0, sd=1)
+
+myDat <- data.frame(
+  y = c(y1, y2), 
+  treatment = c(rep("control", n), rep("fertil", n)), 
+  site = rep(paste0("S", seq(1:n)), 2)
+  )
+str(myDat)
+```
+```{r}
+head(myDat)
+```
+
+* mixed model
+  * 固定効果: treatment
+  * ランダム効果: site
+```{r}
+mod1 <- lmer(y ~ treatment + (1|site), data = myDat, REML=FALSE)
+mod1
+```
+* Random effects の sd は 1 ぐらいになる
+  * 乱数発生時のパラメータ
+* treatmentfertil の Estimate: 6 ぐらいになる
+  * データを作ったときの値
+* p-value がない!
+
+```{r}
+summary(mod1)
+```
+```{r}
+plot(mod1)
+```
+
+* p値の算出
+
+```{r}
+mod2<- lmer(y ~ 1 + (1|site), data = myDat, REML=FALSE)
+mod2
+```
+
+```{r}
+anova(mod1, mod2)
+```
+
+モデルの中身の取り出し
+
+* `broom` package
+
+
+```{r}
+library(broom)
+```
+
+
+```{r}
+tidy(mod1)
+```
+```{r}
+library(dplyr)
+```
+```{r}
+tidy(mod1) %>% 
+  filter(term=="treatmentfertil") -> output
+output$estimate
+```
+
+* 関数
+
+```{r}
+power_analysis <- function(n){
+  site_effect <- rnorm(n, mean=0, sd=1)
+  y1 <- site_effect + rnorm(n, mean=0, sd=1)
+  y2 <- site_effect + 6 + rnorm(n, mean=0, sd=1)
+
+  myDat <- data.frame(
+    y = c(y1, y2), 
+    treatment = c(rep("control", n), rep("fertil", n)), 
+    site = rep(paste0("S", seq(1:n)), 2)
+    )
+  mod1 <- lmer(y ~ treatment + (1|site), data = myDat, REML=FALSE)
+  tidy(mod1) %>% 
+    filter(term=="treatmentfertil") -> output
+  return(output$estimate)
+}
+power_analysis(5)
+```
+```{r}
+power_analysis(2)
+```
+
+n=1 だとエラー
+```{r}
+power_analysis(1)
+```
+
+* 6に収束
+
+```{r}
+for (i in c(1:10)){
+  n <- 2**i
+  print(power_analysis(n))
+}
+```
+
+```{r}
+coef(mod1)
+```
+
+* 結果の違いをシミュレーションする
+
+```{r}
+data.frame(sample_size = rep(2:40, each=10)) %>% 
+  rowwise() %>% 
+  mutate(po = power_analysis(sample_size)) -> simulation
+head(simulation)
+str(simulation)
+```
+
+```{r}
+library(ggplot2)
+```
+
+* 6に収束
+```{r}
+ggplot(simulation, aes(x = sample_size, y = po)) + 
+  geom_point()
+```
+
+```{r}
+compute_p <- function(n){
+  site_effect <- rnorm(n, mean=0, sd=1)
+  y1 <- site_effect + rnorm(n, mean=0, sd=1)
+  y2 <- site_effect + 6 + rnorm(n, mean=0, sd=1)
+
+  myDat <- data.frame(
+    y = c(y1, y2), 
+    treatment = c(rep("control", n), rep("fertil", n)), 
+    site = rep(paste0("S", seq(1:n)), 2)
+    )
+  mod1 <- lmer(y ~ treatment + (1|site), data = myDat, REML=FALSE)
+  mod2 <- lmer(y ~ 1 + (1|site), data = myDat, REML=FALSE)
+  tst <- anova(mod1, mod2)
+  tst %>% 
+    tidy() %>% 
+    filter(term=="mod1") -> output
+  return(output[["p.value"]])
+}
+compute_p(5)
+```
+
+```{r}
+suppressWarnings(
+  data.frame(sample_size = rep(2:40, each=10)) %>% 
+    rowwise() %>% 
+    mutate(p.value = compute_p(sample_size)) -> simulation2
+) 
+```
+
+```{r}
+ggplot(simulation2, aes(x = sample_size, y = p.value)) + 
+  geom_point()
+```
+
+```{r}
+ggplot(simulation2, aes(x = sample_size, y = p.value)) + 
+  geom_point() + 
+  scale_y_continuous(trans = "log10")
+```
